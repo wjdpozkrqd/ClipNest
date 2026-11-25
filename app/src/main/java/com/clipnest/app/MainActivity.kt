@@ -695,7 +695,7 @@ private fun ClipsScreen(
             )
         } else {
             LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
+                columns = GridCells.Fixed(3),
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
@@ -758,32 +758,22 @@ private fun ClipCard(
 
     BrutalCard(modifier = Modifier.fillMaxWidth()) {
         Column(
-            Modifier.padding(10.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            Modifier.padding(7.dp),
+            verticalArrangement = Arrangement.spacedBy(3.dp)
         ) {
-            // 类型与收藏按钮
+            // 类型与收藏
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Surface(
-                    color = Color(0xFFEDEFFF),
-                    shape = RoundedCornerShape(6.dp)
-                ) {
-                    Text(
-                        item.detectedType,
-                        modifier = Modifier.padding(
-                            horizontal = 7.dp,
-                            vertical = 4.dp
-                        ),
-                        color = Ink,
-                        fontSize = 10.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                Spacer(Modifier.weight(1f))
+                Text(
+                    item.detectedType,
+                    modifier = Modifier.weight(1f),
+                    color = Ink,
+                    fontSize = 9.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
 
                 IconButton(
                     onClick = {
@@ -795,39 +785,36 @@ private fun ClipCard(
                                 )
                             )
                         }
-                    }
+                    },
+                    modifier = Modifier.size(26.dp)
                 ) {
                     Icon(
                         if (item.isFavorite || item.isPermanent)
                             Icons.Default.Bookmark
                         else Icons.Default.BookmarkBorder,
                         null,
-                        tint = Accent
+                        tint = Accent,
+                        modifier = Modifier.size(17.dp)
                     )
                 }
             }
 
-            // 内容预览
+            // 内容预览：最多两行
             Text(
                 text = item.content,
                 modifier = Modifier.fillMaxWidth(),
-                maxLines = 4,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                fontSize = 12.sp,
-                lineHeight = 17.sp,
+                fontSize = 10.sp,
+                lineHeight = 13.sp,
                 color = Ink
             )
 
-            // 分类与时间
+            // 分类
             Text(
-                "${item.category} · ${
-                    java.text.SimpleDateFormat(
-                        "MM-dd HH:mm",
-                        java.util.Locale.getDefault()
-                    ).format(java.util.Date(item.createdAt))
-                }",
+                item.category,
                 color = Muted,
-                fontSize = 9.sp,
+                fontSize = 8.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -841,12 +828,14 @@ private fun ClipCard(
                 IconButton(
                     onClick = {
                         copyToClipboard(context, item.content, "已复制")
-                    }
+                    },
+                    modifier = Modifier.size(26.dp)
                 ) {
                     Icon(
                         Icons.Default.ContentCopy,
                         null,
-                        tint = Muted
+                        tint = Muted,
+                        modifier = Modifier.size(16.dp)
                     )
                 }
 
@@ -855,12 +844,14 @@ private fun ClipCard(
                         scope.launch {
                             dao.deleteClip(item)
                         }
-                    }
+                    },
+                    modifier = Modifier.size(26.dp)
                 ) {
                     Icon(
                         Icons.Default.DeleteOutline,
                         null,
-                        tint = Muted
+                        tint = Muted,
+                        modifier = Modifier.size(16.dp)
                     )
                 }
             }
