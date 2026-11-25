@@ -955,12 +955,39 @@ private fun TopicsScreen(
                 contentPadding = PaddingValues(bottom = 20.dp)
             ) {
                 items(topics, key = { it.id }) { topic ->
+                    val sameGroup = topics.filter {
+                        it.isPinned == topic.isPinned
+                    }
+                    val groupIndex = sameGroup.indexOfFirst {
+                        it.id == topic.id
+                    }
+
                     TopicCard(
                         topic = topic,
                         dao = dao,
+                        canMoveUp = groupIndex > 0,
+                        canMoveDown = groupIndex < sameGroup.lastIndex,
                         onClick = { onOpenTopic(topic.id) },
                         onEdit = { editingTopic = topic },
                         onDelete = { deletingTopic = topic },
+                        onTogglePin = {
+                            scope.launch {
+                                dao.setTopicPinned(
+                                    topic.id,
+                                    !topic.isPinned
+                                )
+                            }
+                        },
+                        onMoveUp = {
+                            scope.launch {
+                                dao.moveTopic(topic.id, -1)
+                            }
+                        },
+                        onMoveDown = {
+                            scope.launch {
+                                dao.moveTopic(topic.id, 1)
+                            }
+                        },
                         onDuplicate = {
                             scope.launch {
                                 val newId =
@@ -1040,9 +1067,14 @@ private fun TopicsScreen(
 private fun TopicCard(
     topic: TopicEntity,
     dao: ClipNestDao,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
     onClick: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    onTogglePin: () -> Unit,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit,
     onDuplicate: () -> Unit
 ) {
     val entries by dao.observeEntries(topic.id)
@@ -1085,6 +1117,44 @@ private fun TopicCard(
                         fontSize = 11.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                IconButton(
+                    enabled = canMoveUp,
+                    onClick = onMoveUp,
+                    modifier = Modifier.size(34.dp)
+                ) {
+                    Icon(
+                        Icons.Default.ArrowUpward,
+                        "上移",
+                        tint = if (canMoveUp) Ink else Muted.copy(alpha = 0.3f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                IconButton(
+                    enabled = canMoveDown,
+                    onClick = onMoveDown,
+                    modifier = Modifier.size(34.dp)
+                ) {
+                    Icon(
+                        Icons.Default.ArrowDownward,
+                        "下移",
+                        tint = if (canMoveDown) Ink else Muted.copy(alpha = 0.3f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                IconButton(
+                    onClick = onTogglePin,
+                    modifier = Modifier.size(34.dp)
+                ) {
+                    Icon(
+                        Icons.Default.PushPin,
+                        if (topic.isPinned) "取消置顶" else "置顶",
+                        tint = if (topic.isPinned) Accent else Muted,
+                        modifier = Modifier.size(19.dp)
                     )
                 }
 

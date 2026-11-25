@@ -29,7 +29,11 @@ interface ClipNestDao {
     suspend fun clearClips()
 
     // 第一层：主题
-    @Query("SELECT * FROM topics ORDER BY createdAt DESC")
+    @Query("""
+        SELECT * FROM topics
+        WHERE isDeleted = 0
+        ORDER BY isPinned DESC, sortOrder ASC, createdAt DESC
+    """)
     fun observeTopics(): Flow<List<TopicEntity>>
 
     @Insert
@@ -43,6 +47,57 @@ interface ClipNestDao {
 
     @Query("SELECT * FROM topics WHERE id = :topicId LIMIT 1")
     suspend fun getTopicById(topicId: Long): TopicEntity?
+
+    @Query("""
+        SELECT * FROM topics
+        WHERE isPinned = :pinned AND isDeleted = 0
+        ORDER BY sortOrder ASC, createdAt DESC
+    """)
+    suspend fun getTopicsByPinned(pinned: Boolean): List<TopicEntity>
+
+    /**
+     * 置顶或取消置顶，并将主题放到目标分组的最前面。
+     */
+    @Transaction
+    suspend fun setTopicPinned(topicId: Long, pinned: Boolean) {
+        val topic = getTopicById(topicId) ?: return
+
+        val updated = topic.copy(
+            isPinned = pinned,
+            sortOrder = 0
+        )
+        updateTopic(updated)
+
+        val group = getTopicsByPinned(pinned)
+        val reordered = listOf(updated) + group.filter { it.id != topicId }
+
+        reordered.forEachIndexed { index, item ->
+            updateTopic(item.copy(sortOrder = index))
+        }
+    }
+
+    /**
+     * 在同一个置顶分组内调整主题顺序。
+     * direction: -1 上移，1 下移。
+     */
+    @Transaction
+    suspend fun moveTopic(topicId: Long, direction: Int) {
+        val topic = getTopicById(topicId) ?: return
+        val group = getTopicsByPinned(topic.isPinned).toMutableList()
+
+        val currentIndex = group.indexOfFirst { it.id == topicId }
+        if (currentIndex < 0) return
+
+        val targetIndex = currentIndex + direction
+        if (targetIndex !in group.indices) return
+
+        val item = group.removeAt(currentIndex)
+        group.add(targetIndex, item)
+
+        group.forEachIndexed { index, reorderedTopic ->
+            updateTopic(reorderedTopic.copy(sortOrder = index))
+        }
+    }
 
     @Query("SELECT * FROM material_entries WHERE topicId = :topicId ORDER BY sortOrder, createdAt DESC")
     suspend fun getEntriesForTopic(topicId: Long): List<MaterialEntryEntity>
@@ -61,7 +116,12 @@ interface ClipNestDao {
             source.copy(
                 id = 0,
                 title = "${source.title} 副本",
-                createdAt = System.currentTimeMillis()
+                createdAt = System.currentTimeMillis(),
+                isPinned = false,
+                sortOrder = 0,
+                lastOpenedAt = null,
+                isDeleted = false,
+                deletedAt = null
             )
         )
 
