@@ -309,28 +309,70 @@ private fun BrutalDialog(
     ) {
         Surface(
             modifier = Modifier
-                .fillMaxWidth(0.91f)
-                .brutalPanel(6.dp)
+                .fillMaxWidth(0.92f)
+                .brutalPanel(7.dp)
                 .border(2.dp, Ink, RectangleShape),
             shape = RectangleShape,
-            color = Canvas
+            color = Card
         ) {
-            Column(Modifier.padding(18.dp)) {
-                Text(
-                    title,
-                    fontSize = 21.sp,
-                    fontWeight = FontWeight.Black,
-                    color = Ink
-                )
-                Spacer(Modifier.height(15.dp))
-                content()
-                Spacer(Modifier.height(16.dp))
+            Column(Modifier.fillMaxWidth()) {
+
+                // 黄色标题栏
                 Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically,
-                    content = actions
-                )
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Accent)
+                        .padding(horizontal = 18.dp, vertical = 15.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            "CLIPNEST / EDITOR",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Ink.copy(alpha = 0.65f)
+                        )
+                        Spacer(Modifier.height(3.dp))
+                        Text(
+                            title,
+                            fontSize = 21.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Ink
+                        )
+                    }
+
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "关闭",
+                            tint = Ink
+                        )
+                    }
+                }
+
+                // 表单内容
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Canvas)
+                        .padding(18.dp)
+                ) {
+                    content()
+
+                    Spacer(Modifier.height(18.dp))
+                    HorizontalDivider(
+                        color = Ink.copy(alpha = 0.25f),
+                        thickness = 1.dp
+                    )
+                    Spacer(Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically,
+                        content = actions
+                    )
+                }
             }
         }
     }
@@ -1639,6 +1681,7 @@ private fun FieldCard(
                         .fillMaxWidth()
                         .background(Color(0xFFFFF9F0))
                         .border(1.dp, Ink.copy(alpha = 0.25f), RectangleShape)
+                        .clickable(onClick = onCopy)
                         .padding(11.dp)
                 )
             }
