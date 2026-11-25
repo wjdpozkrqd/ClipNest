@@ -289,9 +289,17 @@ private fun EmptyState(
         Text(title, fontWeight = FontWeight.Bold, fontSize = 15.sp)
         Spacer(Modifier.height(5.dp))
         Text(
-            detail,
+            text = detail,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp),
             color = Muted,
-            fontSize = 12.sp
+            fontSize = 12.sp,
+            lineHeight = 19.sp,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            softWrap = true,
+            maxLines = Int.MAX_VALUE,
+            overflow = TextOverflow.Clip
         )
     }
 }
@@ -471,6 +479,7 @@ private fun HomeScreen(
     Column(
         Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp)
             .padding(top = 22.dp)
     ) {
@@ -543,16 +552,14 @@ private fun HomeScreen(
                 Icons.Default.ContentPaste
             )
         } else {
-            LazyColumn(
+            Column(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(
-                    clips.filter { it.content.contains(search, true) }
-                        .take(8),
-                    key = { it.id }
-                ) {
-                    ClipCard(it, dao)
-                }
+                clips.filter { it.content.contains(search, true) }
+                    .take(8)
+                    .forEach { clip ->
+                        ClipCard(clip, dao)
+                    }
             }
         }
     }
