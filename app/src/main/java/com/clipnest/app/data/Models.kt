@@ -1,11 +1,17 @@
 package com.clipnest.app.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "clips")
+@Entity(
+    tableName = "clips",
+    indices = [
+        Index(value = ["isDeleted", "isPinned", "sortOrder", "lastUsedAt"])
+    ]
+)
 data class ClipEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val content: String,
@@ -13,15 +19,52 @@ data class ClipEntity(
     val category: String = "未分类",
     val isFavorite: Boolean = false,
     val isPermanent: Boolean = false,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+
+    // V3：置顶、排序、最近使用、回收站
+    @ColumnInfo(defaultValue = "0")
+    val isPinned: Boolean = false,
+
+    @ColumnInfo(defaultValue = "0")
+    val sortOrder: Int = 0,
+
+    @ColumnInfo(defaultValue = "NULL")
+    val lastUsedAt: Long? = null,
+
+    @ColumnInfo(defaultValue = "0")
+    val isDeleted: Boolean = false,
+
+    @ColumnInfo(defaultValue = "NULL")
+    val deletedAt: Long? = null
 )
 
-@Entity(tableName = "topics")
+@Entity(
+    tableName = "topics",
+    indices = [
+        Index(value = ["isDeleted", "isPinned", "sortOrder", "lastOpenedAt"])
+    ]
+)
 data class TopicEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val title: String,
     val description: String = "",
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+
+    // V3：置顶、排序、最近打开、回收站
+    @ColumnInfo(defaultValue = "0")
+    val isPinned: Boolean = false,
+
+    @ColumnInfo(defaultValue = "0")
+    val sortOrder: Int = 0,
+
+    @ColumnInfo(defaultValue = "NULL")
+    val lastOpenedAt: Long? = null,
+
+    @ColumnInfo(defaultValue = "0")
+    val isDeleted: Boolean = false,
+
+    @ColumnInfo(defaultValue = "NULL")
+    val deletedAt: Long? = null
 )
 
 /**
@@ -38,7 +81,9 @@ data class TopicEntity(
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index("topicId")]
+    indices = [
+        Index(value = ["topicId", "isDeleted", "sortOrder", "lastUsedAt"])
+    ]
 )
 data class MaterialEntryEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -46,7 +91,17 @@ data class MaterialEntryEntity(
     val title: String,
     val description: String = "",
     val createdAt: Long = System.currentTimeMillis(),
-    val sortOrder: Int = 0
+    val sortOrder: Int = 0,
+
+    // V3：最近使用、回收站
+    @ColumnInfo(defaultValue = "NULL")
+    val lastUsedAt: Long? = null,
+
+    @ColumnInfo(defaultValue = "0")
+    val isDeleted: Boolean = false,
+
+    @ColumnInfo(defaultValue = "NULL")
+    val deletedAt: Long? = null
 )
 
 /**

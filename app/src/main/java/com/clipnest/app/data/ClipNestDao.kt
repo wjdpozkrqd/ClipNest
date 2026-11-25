@@ -197,9 +197,81 @@ private val MIGRATION_1_2 = object : Migration(1, 2) {
     }
 }
 
+private val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+
+        // 剪贴板：置顶、排序、最近使用、软删除
+        db.execSQL(
+            "ALTER TABLE `clips` ADD COLUMN `isPinned` INTEGER NOT NULL DEFAULT 0"
+        )
+        db.execSQL(
+            "ALTER TABLE `clips` ADD COLUMN `sortOrder` INTEGER NOT NULL DEFAULT 0"
+        )
+        db.execSQL(
+            "ALTER TABLE `clips` ADD COLUMN `lastUsedAt` INTEGER DEFAULT NULL"
+        )
+        db.execSQL(
+            "ALTER TABLE `clips` ADD COLUMN `isDeleted` INTEGER NOT NULL DEFAULT 0"
+        )
+        db.execSQL(
+            "ALTER TABLE `clips` ADD COLUMN `deletedAt` INTEGER DEFAULT NULL"
+        )
+
+        // 主题：置顶、排序、最近打开、软删除
+        db.execSQL(
+            "ALTER TABLE `topics` ADD COLUMN `isPinned` INTEGER NOT NULL DEFAULT 0"
+        )
+        db.execSQL(
+            "ALTER TABLE `topics` ADD COLUMN `sortOrder` INTEGER NOT NULL DEFAULT 0"
+        )
+        db.execSQL(
+            "ALTER TABLE `topics` ADD COLUMN `lastOpenedAt` INTEGER DEFAULT NULL"
+        )
+        db.execSQL(
+            "ALTER TABLE `topics` ADD COLUMN `isDeleted` INTEGER NOT NULL DEFAULT 0"
+        )
+        db.execSQL(
+            "ALTER TABLE `topics` ADD COLUMN `deletedAt` INTEGER DEFAULT NULL"
+        )
+
+        // 资料条目：最近使用、软删除
+        db.execSQL(
+            "ALTER TABLE `material_entries` ADD COLUMN `lastUsedAt` INTEGER DEFAULT NULL"
+        )
+        db.execSQL(
+            "ALTER TABLE `material_entries` ADD COLUMN `isDeleted` INTEGER NOT NULL DEFAULT 0"
+        )
+        db.execSQL(
+            "ALTER TABLE `material_entries` ADD COLUMN `deletedAt` INTEGER DEFAULT NULL"
+        )
+
+        // 主题索引：置顶、排序、最近打开
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_topics_isDeleted_isPinned_sortOrder_lastOpenedAt` " +
+                "ON `topics` (`isDeleted`, `isPinned`, `sortOrder`, `lastOpenedAt`)"
+        )
+
+        // 剪贴板索引：软删除、置顶、排序、最近使用
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_clips_isDeleted_isPinned_sortOrder_lastUsedAt` " +
+                "ON `clips` (`isDeleted`, `isPinned`, `sortOrder`, `lastUsedAt`)"
+        )
+
+        // 资料条目索引：主题、软删除、排序、最近使用
+        // 复合索引以 topicId 开头，可以覆盖原来的 topicId 单列索引用途
+        db.execSQL(
+            "DROP INDEX IF EXISTS `index_material_entries_topicId`"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_material_entries_topicId_isDeleted_sortOrder_lastUsedAt` " +
+                "ON `material_entries` (`topicId`, `isDeleted`, `sortOrder`, `lastUsedAt`)"
+        )
+    }
+}
+
 @Database(
     entities = [ClipEntity::class, TopicEntity::class, MaterialEntryEntity::class, MaterialFieldEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class ClipNestDatabase : RoomDatabase() {
@@ -211,6 +283,6 @@ abstract class ClipNestDatabase : RoomDatabase() {
                 context.applicationContext,
                 ClipNestDatabase::class.java,
                 "clipnest.db"
-            ).addMigrations(MIGRATION_1_2).build()
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
     }
 }
