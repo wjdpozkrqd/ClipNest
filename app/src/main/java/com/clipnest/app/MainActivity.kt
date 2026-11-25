@@ -12,6 +12,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -317,6 +320,7 @@ private fun BrutalDialog(
     ) {
         Surface(
             modifier = Modifier
+                .imePadding()
                 .fillMaxWidth(0.92f)
                 .brutalPanel(7.dp)
                 .border(2.dp, Ink, RectangleShape),
@@ -690,11 +694,20 @@ private fun ClipsScreen(
                 Icons.Default.ContentPaste
             )
         } else {
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(bottom = 20.dp)
             ) {
-                items(filtered, key = { it.id }) {
-                    ClipCard(it, dao)
+                items(
+                    count = filtered.size,
+                    key = { index -> filtered[index].id }
+                ) { index ->
+                    ClipCard(filtered[index], dao)
                 }
             }
         }
@@ -744,8 +757,15 @@ private fun ClipCard(
     val scope = rememberCoroutineScope()
 
     BrutalCard(modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(15.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(
+            Modifier.padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            // 类型与收藏按钮
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Surface(
                     color = Color(0xFFEDEFFF),
                     shape = RoundedCornerShape(6.dp)
@@ -753,11 +773,13 @@ private fun ClipCard(
                     Text(
                         item.detectedType,
                         modifier = Modifier.padding(
-                            horizontal = 9.dp,
-                            vertical = 5.dp
+                            horizontal = 7.dp,
+                            vertical = 4.dp
                         ),
                         color = Ink,
-                        fontSize = 11.sp
+                        fontSize = 10.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
@@ -783,34 +805,20 @@ private fun ClipCard(
                         tint = Accent
                     )
                 }
-
-                IconButton(
-                    onClick = {
-                        copyToClipboard(context, item.content, "已复制")
-                    }
-                ) {
-                    Icon(Icons.Default.ContentCopy, null, tint = Muted)
-                }
-
-                IconButton(
-                    onClick = {
-                        scope.launch { dao.deleteClip(item) }
-                    }
-                ) {
-                    Icon(Icons.Default.DeleteOutline, null, tint = Muted)
-                }
             }
 
+            // 内容预览
             Text(
-                item.content,
-                maxLines = 3,
+                text = item.content,
+                modifier = Modifier.fillMaxWidth(),
+                maxLines = 4,
                 overflow = TextOverflow.Ellipsis,
-                fontSize = 14.sp,
+                fontSize = 12.sp,
+                lineHeight = 17.sp,
                 color = Ink
             )
 
-            Spacer(Modifier.height(8.dp))
-
+            // 分类与时间
             Text(
                 "${item.category} · ${
                     java.text.SimpleDateFormat(
@@ -819,8 +827,43 @@ private fun ClipCard(
                     ).format(java.util.Date(item.createdAt))
                 }",
                 color = Muted,
-                fontSize = 10.sp
+                fontSize = 9.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
+
+            // 复制与删除
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = {
+                        copyToClipboard(context, item.content, "已复制")
+                    }
+                ) {
+                    Icon(
+                        Icons.Default.ContentCopy,
+                        null,
+                        tint = Muted
+                    )
+                }
+
+                IconButton(
+                    onClick = {
+                        scope.launch {
+                            dao.deleteClip(item)
+                        }
+                    }
+                ) {
+                    Icon(
+                        Icons.Default.DeleteOutline,
+                        null,
+                        tint = Muted
+                    )
+                }
+            }
         }
     }
 }
@@ -841,6 +884,7 @@ private fun AddClipDialog(
                 value = text,
                 onValueChange = { text = it },
                 label = "内容",
+                modifier = Modifier.heightIn(max = 200.dp),
                 singleLine = false,
                 minLines = 4
             )
