@@ -1219,18 +1219,23 @@ private fun TopicEntriesScreen(
                         onClick = { onOpenEntry(entry.id) },
                         onEdit = { editingEntry = entry },
                         onDelete = { deletingEntry = entry },
-                        onDuplicate = {
-                            scope.launch {
-                                val newId =
-                                    dao.duplicateEntryWithFields(entry.id)
-
-                                if (newId != null) {
-                                    Toast.makeText(
-                                        context,
-                                        "资料条目及其字段已复制",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+                        onCopy = { fields ->
+                            if (fields.isEmpty()) {
+                                Toast.makeText(
+                                    context,
+                                    "该资料条目暂无字段",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            } else {
+                                val allText = fields.joinToString("\n") {
+                                    "${it.fieldName}：${it.fieldValue}"
                                 }
+
+                                copyToClipboard(
+                                    context,
+                                    allText,
+                                    "已复制资料条目"
+                                )
                             }
                         }
                     )
@@ -1303,7 +1308,7 @@ private fun EntryCard(
     onClick: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
-    onDuplicate: () -> Unit
+    onCopy: (List<MaterialFieldEntity>) -> Unit
 ) {
     val fields by dao.observeFields(entry.id)
         .collectAsStateWithLifecycle(initialValue = emptyList())
@@ -1363,7 +1368,7 @@ private fun EntryCard(
                     modifier = Modifier.weight(1f)
                 )
 
-                TextButton(onClick = onDuplicate) {
+                TextButton(onClick = { onCopy(fields) }) {
                     Icon(
                         Icons.Default.ContentCopy,
                         null,
