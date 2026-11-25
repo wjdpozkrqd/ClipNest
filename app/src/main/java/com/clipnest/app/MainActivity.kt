@@ -3,7 +3,11 @@ package com.clipnest.app
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -193,6 +197,112 @@ private fun ClipNestApp(dao: ClipNestDao) {
                 composable("saved") {
                     ClipsScreen(dao, savedOnly = true)
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FloatingBallControl() {
+
+    val context = LocalContext.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 14.dp)
+    ) {
+
+        Text(
+            "ROOT X · 全局悬浮球",
+            fontSize = 17.sp,
+            fontWeight = FontWeight.Black,
+            color = Ink
+        )
+
+        Spacer(Modifier.height(5.dp))
+
+        Text(
+            "玻璃果冻风格 · 随时呼出全局面板",
+            fontSize = 12.sp,
+            color = Muted
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+
+            Button(
+                modifier = Modifier.weight(1f),
+                onClick = {
+
+                    if (!Settings.canDrawOverlays(context)) {
+
+                        val intent = Intent(
+                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                            Uri.parse("package:${context.packageName}")
+                        )
+
+                        context.startActivity(intent)
+
+                        Toast.makeText(
+                            context,
+                            "请在系统设置中允许显示在其他应用上层，然后返回再次点击启动",
+                            Toast.LENGTH_LONG
+                        ).show()
+
+                    } else {
+
+                        val intent = Intent(
+                            context,
+                            FloatingBallService::class.java
+                        ).apply {
+                            action = FloatingBallService.ACTION_START
+                        }
+
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            context.startForegroundService(intent)
+                        } else {
+                            context.startService(intent)
+                        }
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Accent,
+                    contentColor = Ink
+                ),
+                shape = RectangleShape
+            ) {
+                Text("启动悬浮球", fontWeight = FontWeight.Bold)
+            }
+
+            Button(
+                modifier = Modifier.weight(1f),
+                onClick = {
+
+                    context.stopService(
+                        Intent(
+                            context,
+                            FloatingBallService::class.java
+                        )
+                    )
+
+                    Toast.makeText(
+                        context,
+                        "悬浮球已停止",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Ink,
+                    contentColor = Color.White
+                ),
+                shape = RectangleShape
+            ) {
+                Text("停止悬浮球", fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -498,7 +608,9 @@ private fun HomeScreen(
             }
         }
 
-        Spacer(Modifier.height(20.dp))
+        FloatingBallControl()
+
+        Spacer(Modifier.height(16.dp))
 
         BrutalTextField(
             value = search,
