@@ -37,6 +37,7 @@ class FloatingBallService : Service() {
     private var ballParams: WindowManager.LayoutParams? = null
 
     private var panelView: View? = null
+    private var dataPanel: FloatingBallDataPanel? = null
 
     private val prefs by lazy {
         getSharedPreferences("floating_ball", Context.MODE_PRIVATE)
@@ -295,7 +296,16 @@ class FloatingBallService : Service() {
 
         row1.addView(
             tile("我的资料") {
-                toast("资料搜索将在后续阶段接入")
+                removePanel()
+
+                if (dataPanel == null) {
+                    dataPanel = FloatingBallDataPanel(
+                        this,
+                        windowManager
+                    )
+                }
+
+                dataPanel?.showTopics()
             },
             weightParams()
         )
@@ -605,6 +615,9 @@ class FloatingBallService : Service() {
     }
 
     override fun onDestroy() {
+
+        dataPanel?.destroy()
+        dataPanel = null
 
         removePanel()
 
