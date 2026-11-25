@@ -10,6 +10,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -354,6 +356,7 @@ private fun TopicsScreen(dao: ClipNestDao) {
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var selected by remember { mutableStateOf<TopicEntity?>(null) }
+    var pendingDelete by remember { mutableStateOf<TopicEntity?>(null) }
     Column(Modifier.fillMaxSize().padding(20.dp)) {
         PageHeader("主题空间", "把相关资料组织成自己的知识盒子")
         Spacer(Modifier.height(16.dp))
@@ -380,6 +383,9 @@ private fun TopicsScreen(dao: ClipNestDao) {
                             Text(topic.title, fontWeight = FontWeight.SemiBold)
                             Text(topic.description.ifBlank { "点击管理主题字段" }, color = Muted, fontSize = 11.sp)
                         }
+                        IconButton(onClick = { pendingDelete = topic }) {
+                            Icon(Icons.Default.DeleteOutline, contentDescription = "删除主题", tint = Muted)
+                        }
                         Icon(Icons.Default.ChevronRight, null, tint = Muted)
                     }
                 }
@@ -389,26 +395,40 @@ private fun TopicsScreen(dao: ClipNestDao) {
     selected?.let { topic ->
         TopicEditorDialog(topic, dao, onDismiss = { selected = null })
     }
+    pendingDelete?.let { topic ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text("删除主题") },
+            text = { Text("确定删除「${topic.title}」吗？该主题下的所有字段也会一并删除，无法恢复。") },
+            confirmButton = {
+                TextButton(onClick = {
+                    scope.launch { dao.deleteFieldsForTopic(topic.id); dao.deleteTopic(topic) }
+                    pendingDelete = null
+                }) { Text("删除") }
+            },
+            dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text("取消") } }
+        )
+    }
 }
 
 @Composable
 private fun TopicEditorDialog(topic: TopicEntity, dao: ClipNestDao, onDismiss: () -> Unit) {
     val fields by dao.observeFields(topic.id).collectAsStateWithLifecycle(initialValue = emptyList())
     val scope = rememberCoroutineScope()
-    var name by remember { mutableStateOf("") }
-    var value by remember { mutableStateOf("") }
+    var name by remember(topic.id) { mutableStateOf("") }
+    var value by remember(topic.id) { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(topic.title) },
         text = {
-            Column {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
                 Text("主题字段", color = Muted, fontSize = 12.sp)
                 Spacer(Modifier.height(8.dp))
                 fields.forEach { field ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text(field.fieldName, fontWeight = FontWeight.Medium, fontSize = 12.sp)
-                            Text(field.fieldValue, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            Text(field.fieldName, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                            Text(field.fieldValue, fontSize = 13.sp)
                         }
                         IconButton(onClick = { scope.launch { dao.deleteField(field) } }) {
                             Icon(Icons.Default.Close, null, tint = Muted)

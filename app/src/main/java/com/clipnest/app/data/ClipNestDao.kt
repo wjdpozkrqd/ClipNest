@@ -35,6 +35,9 @@ interface ClipNestDao {
     @Delete
     suspend fun deleteTopic(item: TopicEntity)
 
+    @Query("DELETE FROM topic_fields WHERE topicId = :topicId")
+    suspend fun deleteFieldsForTopic(topicId: Long)
+
     @Query("SELECT * FROM topic_fields WHERE topicId = :topicId ORDER BY sortOrder, id")
     fun observeFields(topicId: Long): Flow<List<TopicFieldEntity>>
 
