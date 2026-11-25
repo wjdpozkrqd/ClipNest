@@ -417,6 +417,14 @@ private fun TopicEditorDialog(topic: TopicEntity, dao: ClipNestDao, onDismiss: (
     val scope = rememberCoroutineScope()
     var name by remember(topic.id) { mutableStateOf("") }
     var value by remember(topic.id) { mutableStateOf("") }
+    fun addField() {
+        val n = name.trim()
+        val v = value.trim()
+        if (n.isBlank()) return
+        val nextOrder = fields.size
+        scope.launch { dao.insertField(TopicFieldEntity(topicId = topic.id, fieldName = n, fieldValue = v, sortOrder = nextOrder)) }
+        name = ""; value = ""
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(topic.title) },
@@ -440,14 +448,9 @@ private fun TopicEditorDialog(topic: TopicEntity, dao: ClipNestDao, onDismiss: (
                 OutlinedTextField(name, { name = it }, label = { Text("字段名称") }, singleLine = true)
                 Spacer(Modifier.height(6.dp))
                 OutlinedTextField(value, { value = it }, label = { Text("字段内容") }, minLines = 2)
-                TextButton(onClick = {
-                    if (name.isNotBlank()) {
-                        scope.launch { dao.insertField(TopicFieldEntity(topicId = topic.id, fieldName = name.trim(), fieldValue = value.trim(), sortOrder = fields.size)) }
-                        name = ""; value = ""
-                    }
-                }) { Icon(Icons.Default.Add, null); Text("添加字段") }
+                TextButton(onClick = { addField() }) { Icon(Icons.Default.Add, null); Text("添加字段") }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("完成") } }
+        confirmButton = { TextButton(onClick = { addField(); onDismiss() }) { Text("完成") } }
     )
 }
