@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -357,6 +358,7 @@ private fun TopicsScreen(dao: ClipNestDao) {
     var description by remember { mutableStateOf("") }
     var selected by remember { mutableStateOf<TopicEntity?>(null) }
     var pendingDelete by remember { mutableStateOf<TopicEntity?>(null) }
+    var pendingEdit by remember { mutableStateOf<TopicEntity?>(null) }
     Column(Modifier.fillMaxSize().padding(20.dp)) {
         PageHeader("主题空间", "把相关资料组织成自己的知识盒子")
         Spacer(Modifier.height(16.dp))
@@ -383,6 +385,9 @@ private fun TopicsScreen(dao: ClipNestDao) {
                             Text(topic.title, fontWeight = FontWeight.SemiBold)
                             Text(topic.description.ifBlank { "点击管理主题字段" }, color = Muted, fontSize = 11.sp)
                         }
+                        IconButton(onClick = { pendingEdit = topic }) {
+                            Icon(Icons.Default.Edit, contentDescription = "编辑主题", tint = Muted)
+                        }
                         IconButton(onClick = { pendingDelete = topic }) {
                             Icon(Icons.Default.DeleteOutline, contentDescription = "删除主题", tint = Muted)
                         }
@@ -394,6 +399,16 @@ private fun TopicsScreen(dao: ClipNestDao) {
     }
     selected?.let { topic ->
         TopicEditorDialog(topic, dao, onDismiss = { selected = null })
+    }
+    pendingEdit?.let { topic ->
+        EditTopicDialog(
+            topic = topic,
+            onDismiss = { pendingEdit = null },
+            onSave = { newTitle, newDescription ->
+                scope.launch { dao.updateTopic(topic.copy(title = newTitle, description = newDescription)) }
+                pendingEdit = null
+            }
+        )
     }
     pendingDelete?.let { topic ->
         AlertDialog(
@@ -415,8 +430,10 @@ private fun TopicsScreen(dao: ClipNestDao) {
 private fun TopicEditorDialog(topic: TopicEntity, dao: ClipNestDao, onDismiss: () -> Unit) {
     val fields by dao.observeFields(topic.id).collectAsStateWithLifecycle(initialValue = emptyList())
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     var name by remember(topic.id) { mutableStateOf("") }
     var value by remember(topic.id) { mutableStateOf("") }
+    var editingField by remember { mutableStateOf<TopicFieldEntity?>(null) }
     fun addField() {
         val n = name.trim()
         val v = value.trim()
@@ -425,6 +442,21 @@ private fun TopicEditorDialog(topic: TopicEntity, dao: ClipNestDao, onDismiss: (
         scope.launch { dao.insertField(TopicFieldEntity(topicId = topic.id, fieldName = n, fieldValue = v, sortOrder = nextOrder)) }
         name = ""; value = ""
     }
+    fun copyText(text: String, toast: String) {
+        val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        cm.setPrimaryClip(ClipData.newPlainText("ClipNest", text))
+        Toast.makeText(context, toast, Toast.LENGTH_SHORT).show()
+    }
+    fun moveField(index: Int, delta: Int) {
+        val target = index + delta
+        if (target < 0 || target >= fields.size) return
+        val field = fields[index]
+        val other = fields[target]
+        scope.launch {
+            dao.updateField(field.copy(sortOrder = other.sortOrder))
+            dao.updateField(other.copy(sortOrder = field.sortOrder))
+        }
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(topic.title) },
@@ -432,14 +464,28 @@ private fun TopicEditorDialog(topic: TopicEntity, dao: ClipNestDao, onDismiss: (
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 Text("主题字段", color = Muted, fontSize = 12.sp)
                 Spacer(Modifier.height(8.dp))
-                fields.forEach { field ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(field.fieldName, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                            Text(field.fieldValue, fontSize = 13.sp)
+                fields.forEachIndexed { index, field ->
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(field.fieldName, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                                Text(field.fieldValue, fontSize = 13.sp)
+                            }
+                            IconButton(onClick = { copyText(field.fieldValue, "已复制") }) {
+                                Icon(Icons.Default.ContentCopy, contentDescription = "复制该字段", tint = Muted)
+                            }
+                            IconButton(onClick = { editingField = field }) {
+                                Icon(Icons.Default.Edit, contentDescription = "编辑字段", tint = Muted)
+                            }
+                            IconButton(onClick = { scope.launch { dao.deleteField(field) } }) {
+                                Icon(Icons.Default.Close, contentDescription = "删除字段", tint = Muted)
+                            }
                         }
-                        IconButton(onClick = { scope.launch { dao.deleteField(field) } }) {
-                            Icon(Icons.Default.Close, null, tint = Muted)
+                        if (fields.size > 1) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                                TextButton(onClick = { moveField(index, -1) }, enabled = index > 0) { Text("上移") }
+                                TextButton(onClick = { moveField(index, 1) }, enabled = index < fields.lastIndex) { Text("下移") }
+                            }
                         }
                     }
                     HorizontalDivider()
@@ -451,6 +497,70 @@ private fun TopicEditorDialog(topic: TopicEntity, dao: ClipNestDao, onDismiss: (
                 TextButton(onClick = { addField() }) { Icon(Icons.Default.Add, null); Text("添加字段") }
             }
         },
-        confirmButton = { TextButton(onClick = { addField(); onDismiss() }) { Text("完成") } }
+        confirmButton = {
+            Row {
+                TextButton(
+                    onClick = {
+                        if (fields.isNotEmpty()) {
+                            copyText(fields.joinToString("\n") { "${it.fieldName}：${it.fieldValue}" }, "已复制全部字段")
+                        }
+                    },
+                    enabled = fields.isNotEmpty()
+                ) { Text("复制全部") }
+                TextButton(onClick = { addField(); onDismiss() }) { Text("完成") }
+            }
+        }
+    )
+    editingField?.let { field ->
+        EditFieldDialog(
+            field = field,
+            onDismiss = { editingField = null },
+            onSave = { newName, newValue ->
+                scope.launch { dao.updateField(field.copy(fieldName = newName, fieldValue = newValue)) }
+                editingField = null
+            }
+        )
+    }
+}
+
+@Composable
+private fun EditTopicDialog(topic: TopicEntity, onDismiss: () -> Unit, onSave: (String, String) -> Unit) {
+    var title by remember(topic.id) { mutableStateOf(topic.title) }
+    var description by remember(topic.id) { mutableStateOf(topic.description) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("编辑主题") },
+        text = {
+            Column {
+                OutlinedTextField(title, { title = it }, label = { Text("主题名称") }, singleLine = true)
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(description, { description = it }, label = { Text("主题说明") }, singleLine = true)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { if (title.isNotBlank()) onSave(title.trim(), description.trim()) }) { Text("保存") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } }
+    )
+}
+
+@Composable
+private fun EditFieldDialog(field: TopicFieldEntity, onDismiss: () -> Unit, onSave: (String, String) -> Unit) {
+    var name by remember(field.id) { mutableStateOf(field.fieldName) }
+    var value by remember(field.id) { mutableStateOf(field.fieldValue) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("编辑字段") },
+        text = {
+            Column {
+                OutlinedTextField(name, { name = it }, label = { Text("字段名称") }, singleLine = true)
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(value, { value = it }, label = { Text("字段内容") }, minLines = 2)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { if (name.isNotBlank()) onSave(name.trim(), value.trim()) }) { Text("保存") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } }
     )
 }
